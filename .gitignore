@@ -1,0 +1,19 @@
+papers/*.pdf
+papers/*/
+.venv/
+__pycache__/
+wandb/
+outputs/
+checkpoints/
+# Project logs
+modal_cost_log
+experiment_log
+
+# LaTeX build artefacts
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.toc
+

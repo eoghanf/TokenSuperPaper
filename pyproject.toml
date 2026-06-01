@@ -1,0 +1,13 @@
+[project]
+name = "tokensuperpaper"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "datasets>=4.8.5",
+    "huggingface-hub>=1.15.0",
+    "matplotlib>=3.10.9",
+    "modal>=1.4.3",
+    "torch>=2.12.0",
+    "transformers>=5.8.1",
+    "wandb>=0.27.0",
+]
