@@ -74,6 +74,10 @@ baseline at equal FLOPs per step.
 Our TST run reaches a validation cross-entropy of $3.41$ nats; the baseline requires
 $38{,}250$ steps to reach the same loss, corresponding to a $\mathbf{1.91\times}$ speedup
 in gradient steps and in total FLOPs.
+We further investigate the mechanism via a phase ratio sweep and a schedule-matched
+baseline, finding that 85\% of TST's advantage is attributable to its Warmup-Stable-Decay
+schedule reaching its decay horizon earlier in FLOPs-space, with the remaining 15\%
+reflecting a genuine contribution from the superposition phase itself.
 \end{abstract}
 
 \begin{figure}[H]
@@ -280,6 +284,105 @@ By the end of the TST run's 20{,}000 steps, the baseline requires a further
 $\sim$18{,}000 steps --- nearly doubling its compute budget --- to reach the same
 validation loss.
 
+\section{Ablation Studies}
+
+Having confirmed the core TST result, we ran two follow-up experiments to probe
+\emph{why} the method works.
+
+\subsection{Phase Ratio Sweep}
+
+The original paper uses $r=0.3$, allocating 30\% of training steps (6{,}000 of 20{,}000)
+to the superposition phase.
+We trained five additional GPT-2 medium variants at $r \in \{0.06, 0.12, 0.18, 0.24, 0.36\}$,
+corresponding to 20\%, 40\%, 60\%, 80\%, and 120\% of the original phase length,
+with all other hyperparameters held fixed.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Variant} & \textbf{$r$} & \textbf{Sup.\ steps} & \textbf{Val CE (nats)} & \textbf{Val BPB} \\
+\midrule
+tst-r006 & 0.06 & 1{,}200 & 3.4227 & 1.2345 \\
+tst-r012 & 0.12 & 2{,}400 & 3.4170 & 1.2324 \\
+tst-r018 & 0.18 & 3{,}600 & \textbf{3.4062} & \textbf{1.2285} \\
+tst-r024 & 0.24 & 4{,}800 & 3.4072 & 1.2289 \\
+tst-r036 & 0.36 & 7{,}200 & 3.4123 & 1.2307 \\
+\midrule
+TokenSuperposition20k ($r=0.30$, ref.) & 0.30 & 6{,}000 & 3.4116 & --- \\
+\bottomrule
+\end{tabular}
+\caption{Phase ratio sweep results. All variants use 20{,}000 total steps, $s=6$,
+GPT-2 medium. Best result is at $r=0.18$ (60\% of the reference phase length).}
+\label{tab:sweep}
+\end{table}
+
+Table~\ref{tab:sweep} shows that all five variants land within 0.017 nats of one another.
+The best result is at $r=0.18$ (3{,}600 superposition steps), marginally outperforming
+the reference $r=0.30$.
+This broad insensitivity to phase length suggests that TST is robust to
+the choice of $r$, and that the original paper's recommendation of $r=0.3$
+is conservative rather than optimal.
+
+Examining the val loss trajectories reveals a sharp decline beginning at step 18{,}000
+across all variants, including the reference TST run.
+Step 18{,}000 is exactly the WSD decay horizon ($0.9 \times 20{,}000$), identifying
+the LR decay — not any property of the superposition phase — as the proximate cause
+of the final loss improvement.
+This observation motivated the experiment below.
+
+\subsection{Schedule-Matched Baseline}
+\label{sec:schedule}
+
+The WSD schedule couples the decay horizon to total training steps.
+A TST run with 20{,}000 total steps begins LR decay at step 18{,}000.
+A standard Baseline40k with 40{,}000 total steps begins decay at step 36{,}000.
+At the FLOPs-matched comparison point (Baseline40k step $\approx$20{,}000), the baseline
+is still in its flat stable phase and has not yet benefited from LR decay.
+We therefore asked: how much of TST's apparent advantage is simply reaching the decay
+horizon earlier in FLOPs-space, rather than anything specific to bag training?
+
+To isolate this, we trained a \emph{schedule-matched baseline}: standard AR for
+20{,}000 steps with WSD decay at step 18{,}000 --- identical step count, identical
+decay timing, and equal total FLOPs to TST20k, but with no superposition phase.
+Results are summarised in Table~\ref{tab:schedule}.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lcc}
+\toprule
+\textbf{Run} & \textbf{Val BPB} & \textbf{Advantage over equal-FLOPs baseline} \\
+\midrule
+Baseline40k at equal FLOPs (pre-decay) & 1.3232 & --- \\
+Schedule-matched baseline (AR, 20k) & 1.2443 & $+$0.0789 BPB (85\%) \\
+TokenSuperposition20k (TST, 20k) & 1.2305 & $+$0.0927 BPB (100\%) \\
+\bottomrule
+\end{tabular}
+\caption{Decomposition of TST's advantage. The schedule-matched baseline matches
+TST's step count and decay timing but uses standard AR throughout.
+The ``advantage'' column measures improvement over Baseline40k at the same FLOPs.}
+\label{tab:schedule}
+\end{table}
+
+The schedule-matched baseline (BPB~$= 1.244$) substantially closes the gap to TST
+(BPB~$= 1.231$), but does not eliminate it.
+Decomposing TST's total 0.093~BPB advantage over the equal-FLOPs standard baseline:
+
+\begin{itemize}
+    \item \textbf{85\% (0.079~BPB)} is attributable to the earlier LR decay horizon:
+    simply training for 20{,}000 steps instead of 40{,}000 — with the same proportional
+    WSD schedule — captures most of the benefit without any bag training.
+    \item \textbf{15\% (0.014~BPB)} is a genuine residual from the superposition
+    phase itself, present even after controlling for the schedule.
+\end{itemize}
+
+This result reframes TST's efficiency: the dominant mechanism is that the method
+provides a natural, compute-cheap way to front-load training and reach the WSD
+decay horizon earlier in FLOPs-space.
+The superposition phase contributes a modest additional signal — consistent with the
+embedding-geometry hypothesis that bag averaging imposes useful inductive biases on
+the token embedding space — but this effect is secondary to the scheduling effect.
+
 \section{Discussion}
 
 \subsection{Comparison with the Original Paper}
@@ -347,8 +450,21 @@ the gradient steps and FLOPs of a standard autoregressive baseline, at the cost 
 processing more data tokens.
 Our 345\,M parameter reproduction on FineWeb-Edu yields a $1.91\times$ step/FLOP
 speedup, consistent with the original paper's results at comparable scale.
+
+Our ablation studies offer a more granular view of the mechanism.
+A phase ratio sweep ($r \in \{0.06, \ldots, 0.36\}$) shows broad robustness to the
+choice of superposition fraction, with all variants within 0.017 nats of one another;
+the best result occurs at $r=0.18$, suggesting the reference $r=0.3$ is mildly
+over-long.
+A schedule-matched baseline --- standard AR for 20{,}000 steps with the WSD decay
+horizon identical to TST --- reveals that 85\% of TST's advantage arises from
+reaching LR decay earlier in FLOPs-space, not from bag training per se.
+The remaining 15\% is a genuine residual that the superposition phase contributes
+beyond this scheduling effect.
+
 These results confirm the core claim that TST significantly accelerates pre-training
-at constant compute cost per step.
+at constant compute cost per step, while clarifying that much of the gain is
+a consequence of the WSD schedule rather than the bag-training objective itself.
 The method is straightforward to implement --- the core changes fit in under 30 lines
 of PyTorch --- and the results transfer to a different model and dataset from those
 used in the original work.
