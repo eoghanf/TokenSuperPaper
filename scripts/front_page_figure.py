@@ -25,6 +25,9 @@ BAR_ORDER = [
     "Baseline (40k steps)",
 ]
 
+ARROW_COLOR_TST   = (1.0, 0.647059, 0.0)   # yellow — matches isoloss plots
+ARROW_COLOR_SCHED = (0.878, 0.235, 0.518)   # pink
+
 
 def fetch_val_curve(run_id: str):
     api = wandb.Api()
@@ -34,6 +37,34 @@ def fetch_val_curve(run_id: str):
              .sort_values("_step")
              .reset_index(drop=True))
     return df["_step"].to_numpy(), df["val/bpb"].to_numpy()
+
+
+def _add_speedup_arrow(ax, base_steps, base_bpb, query_end_step,
+                       query_end_bpb, color, label_above=True):
+    """Horizontal <-> arrow from query endpoint to baseline iso-loss step."""
+    # First baseline step where running-min bpb ≤ query_end_bpb
+    base_rmin = np.minimum.accumulate(base_bpb)
+    hits = np.where(base_rmin <= query_end_bpb)[0]
+    if len(hits) == 0:
+        return
+    base_iso_step = base_steps[hits[0]]
+
+    y     = query_end_bpb
+    ylo, yhi = ax.get_ylim()
+    dy    = (yhi - ylo) * 0.035
+    y_label = y + dy if label_above else y - dy * 1.6
+    mid_x = (query_end_step + base_iso_step) / 2
+    ratio = base_iso_step / query_end_step
+
+    ax.annotate("", xy=(query_end_step, y), xytext=(base_iso_step, y),
+                arrowprops=dict(arrowstyle="<->", color=color, lw=2.0,
+                                shrinkA=0, shrinkB=0))
+    ax.plot([query_end_step, base_iso_step], [y, y],
+            "o", color=color, markersize=5, zorder=5)
+    ax.text(mid_x, y_label, f"{ratio:.2f}× fewer steps",
+            ha="center", va="bottom" if label_above else "top",
+            fontsize=8.5, color=color,
+            bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=0.85))
 
 
 def main():
@@ -56,11 +87,6 @@ def main():
         ls = "--" if label == "Baseline (40k steps)" else "-"
         ax_line.plot(steps, bpb, label=label, color=color, linewidth=lw, linestyle=ls)
 
-    # Mark the WSD decay horizon for the 20k runs
-    ax_line.axvline(18000, color="gray", linewidth=0.9, linestyle=":", alpha=0.8)
-    ax_line.text(18200, ax_line.get_ylim()[1] if ax_line.get_ylim()[1] < 2 else 1.55,
-                 "LR decay\n(step 18k)", fontsize=7.5, color="gray", va="top")
-
     ax_line.set_xlabel("Training step", fontsize=10)
     ax_line.set_ylabel("Validation loss (BPB)", fontsize=10)
     ax_line.set_title("Validation loss during training", fontsize=11)
@@ -68,7 +94,19 @@ def main():
     ax_line.grid(True, alpha=0.3, linewidth=0.6)
     ax_line.set_xlim(left=0)
 
-    # Re-draw the decay line after ylim is set
+    # Speedup arrows (drawn after ylim is set by plotted data)
+    base_steps, base_bpb, _ = curves["Baseline (40k steps)"]
+    tst_steps,  tst_bpb,  _ = curves["Token Superposition (20k steps)"]
+    sched_steps, sched_bpb, _ = curves["Schedule-matched (20k steps)"]
+
+    _add_speedup_arrow(ax_line, base_steps, base_bpb,
+                       tst_steps[-1], tst_bpb[-1],
+                       ARROW_COLOR_TST, label_above=True)
+    _add_speedup_arrow(ax_line, base_steps, base_bpb,
+                       sched_steps[-1], sched_bpb[-1],
+                       ARROW_COLOR_SCHED, label_above=False)
+
+    # Decay marker (re-drawn after ylim settled)
     ylo, yhi = ax_line.get_ylim()
     ax_line.axvline(18000, color="gray", linewidth=0.9, linestyle=":", alpha=0.8)
     ax_line.text(18300, ylo + (yhi - ylo) * 0.97,
