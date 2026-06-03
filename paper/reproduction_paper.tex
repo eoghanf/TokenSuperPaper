@@ -64,26 +64,11 @@
 
 \begin{abstract}
 We reproduce the core finding of \emph{Efficient Pre-Training with Token Superposition}
-\citep{peng2026efficient}.
-That paper introduces Token-Superposition Training (TST), a two-phase pre-training
-method.
-We re-implement TST from scratch using a GPT-2 medium (345\,M parameter)
-architecture trained on FineWeb-Edu, and compare a 20\,000-step TST run
-(superposition bag size $s=6$, ratio $r=0.3$) against a 40\,000-step standard
-baseline at equal FLOPs per step.
-Our TST run reaches a validation cross-entropy of $3.41$ nats; the baseline requires
-$38{,}250$ steps to reach the same loss, corresponding to a $\mathbf{1.91\times}$ speedup
-in gradient steps and in total FLOPs.
-However, we argue that this comparison is confounded by the Warmup-Stable-Decay (WSD)
-learning rate schedule.
-Because TST trains for 20{,}000 steps while the baseline trains for 40{,}000, TST's LR
-decay horizon arrives at half the total FLOPs, giving it a structural advantage
-unrelated to bag training.
-A schedule-matched baseline — standard autoregressive training for 20{,}000 steps with
-an identical decay horizon — recovers 85\% of TST's apparent advantage with no
-superposition at all.
-The remaining 15\% attributable to bag training is real but modest (0.014~BPB),
-and does not support the strong efficiency claims of the original paper.
+\citep{peng2026efficient}, but show that 85\% of the claimed speedup can be achieved
+by simply matching the learning rate schedule of the TST experimental setup ---
+using standard autoregressive training throughout.
+The remaining 15\% is a real but modest improvement (0.014 bits-per-byte) that does
+not support the strong efficiency claims of the original paper.
 \end{abstract}
 
 \begin{figure}[H]
