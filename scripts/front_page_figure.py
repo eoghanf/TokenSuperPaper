@@ -96,6 +96,30 @@ def main():
                     val + 200, f"{val:,}",
                     ha="center", va="bottom", fontsize=8.5, fontweight="bold")
 
+    # Horizontal blue reference line at the baseline bar height
+    baseline_steps = bar_values[2]   # Baseline (40k steps) is last in BAR_ORDER
+    ax_bar.axhline(baseline_steps, color="#2166ac", linewidth=1.5,
+                   linestyle="--", alpha=0.7, zorder=3)
+
+    # Vertical arrows from the reference line down to the 20k bars, with speedup labels
+    for i in range(2):   # schedule-matched (0) and TST (1)
+        bar   = bars[i]
+        val   = bar_values[i]
+        color = bar_colors[i]
+        x     = bar.get_x() + bar.get_width() / 2
+        speedup = baseline_steps / val
+
+        ax_bar.annotate("",
+            xy=(x, val),
+            xytext=(x, baseline_steps),
+            arrowprops=dict(arrowstyle="-|>", color=color, lw=1.8,
+                            mutation_scale=12))
+
+        mid_y = (val + baseline_steps) / 2
+        ax_bar.text(x + 0.18, mid_y, f"{speedup:.2f}×",
+                    ha="left", va="center", fontsize=9,
+                    color=color, fontweight="bold")
+
     ax_bar.set_ylim(0, max(bar_values) * 1.18)
     ax_bar.set_ylabel("Training steps", fontsize=10)
     ax_bar.set_title(f"Steps to {TARGET_BPB} validation loss", fontsize=11)
