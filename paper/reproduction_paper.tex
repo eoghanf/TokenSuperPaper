@@ -73,13 +73,15 @@ not support the strong efficiency claims of the original paper.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=\linewidth]{../assets/isoloss_val_notitle.png}
-    \caption{Isoloss curves for validation loss (bits per byte) comparing
-    standard autoregressive pre-training (\textbf{Baseline40k}) and
-    Token-Superposition Training (\textbf{TokenSuperposition20k}, $s{=}6$,
-    $r{=}0.3$). Each curve shows the best validation loss achieved up to that
-    resource level.}
-    \label{fig:isoloss-val-p1}
+    \includegraphics[width=\linewidth]{../assets/front_page_figure.png}
+    \caption{\textbf{Left:} Validation loss (BPB) during training for the standard
+    40k-step baseline (dashed), the 20k-step Token Superposition run, and the
+    20k-step schedule-matched baseline (standard AR with identical LR decay timing).
+    The schedule-matched baseline closely tracks Token Superposition throughout.
+    \textbf{Right:} Final validation BPB for each run. The gap between the
+    schedule-matched baseline and Token Superposition (0.014 BPB, 15\% of TST's
+    total advantage) is far smaller than the gap closed by schedule-matching alone.}
+    \label{fig:front-page}
 \end{figure}
 
 \section{Introduction}
