@@ -227,6 +227,7 @@ def _add_iso_arrow(ax, data: dict, loss_type: str, loss_col: str,
 
 def make_figure(loss_type: str, loss_col: str, y_label: str, data: dict,
                 show_title: bool = True,
+                show_arrows: bool = True,
                 flops_per_second: float = None) -> plt.Figure:
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))
     if show_title:
@@ -251,7 +252,8 @@ def make_figure(loss_type: str, loss_col: str, y_label: str, data: dict,
         ax.legend(fontsize=7)
 
         # Arrow drawn before secondary axis (uses ylim set by plotted data)
-        _add_iso_arrow(ax, data, loss_type, loss_col, x_col, scale)
+        if show_arrows:
+            _add_iso_arrow(ax, data, loss_type, loss_col, x_col, scale)
 
         if secondary == "cost":
             _add_cost_axis(ax)
@@ -282,12 +284,20 @@ def main():
     plt.close(fig)
     print("  → isoloss_val.png")
 
-    print("Building val BPB figure (no title, for paper) …")
-    fig = make_figure("val", "val/bpb", "Val loss (BPB)", data,
+    print("Building val BPB figure (no title, key runs only, for paper) …")
+    ref_data = {k: data[k] for k in REFERENCE_RUNS}
+    fig = make_figure("val", "val/bpb", "Val loss (BPB)", ref_data,
                       show_title=False, flops_per_second=fps)
     fig.savefig(f"{OUTPUT_DIR}/isoloss_val_notitle.png", dpi=150, bbox_inches="tight")
     plt.close(fig)
     print("  → isoloss_val_notitle.png")
+
+    print("Building val BPB figure (no arrows, all variants, for paper) …")
+    fig = make_figure("val", "val/bpb", "Val loss (BPB)", data,
+                      show_title=False, show_arrows=False, flops_per_second=fps)
+    fig.savefig(f"{OUTPUT_DIR}/isoloss_val_noarrows.png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print("  → isoloss_val_noarrows.png")
 
     print("Done.")
 

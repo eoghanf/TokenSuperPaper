@@ -241,32 +241,31 @@ step count on equal hardware.
 
 \subsection{Isoloss Curves}
 
-Figures~\ref{fig:isoloss-train} and~\ref{fig:isoloss-val} show the isoloss
-curves for both runs.
+Figure~\ref{fig:isoloss-val} shows the isoloss curves for the two key runs.
 Each curve plots the best (running-minimum) loss achieved up to each resource
 level, so for any target loss value the horizontal gap between the two curves
 gives the resource saving.
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=\linewidth]{../assets/isoloss_train.png}
-    \caption{Isoloss curves for \textbf{training loss}. X-axes: gradient steps,
-    data tokens processed, wall-clock seconds, and total FLOPs. Y-axis: running
-    minimum training loss (nats). The red curve (TokenSuperposition20k) initially
-    trains more slowly due to the superposition phase, then recovers sharply and
-    matches the baseline's training loss efficiency in the final standard-AR phase.}
-    \label{fig:isoloss-train}
+    \includegraphics[width=\linewidth]{../assets/isoloss_val_notitle.png}
+    \caption{Isoloss curves for \textbf{validation loss} (BPB). X-axes: gradient
+    steps, data tokens processed, wall-clock seconds, and total FLOPs. Y-axis:
+    running minimum validation BPB. The yellow arrow (steps panel) marks the
+    $1.91\times$ step saving: the baseline requires $38{,}250$ steps to match
+    TST's final validation loss of $3.41$ nats.}
+    \label{fig:isoloss-val}
 \end{figure}
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=\linewidth]{../assets/isoloss_val.png}
-    \caption{Isoloss curves for \textbf{validation cross-entropy}. Same axes as
-    Figure~\ref{fig:isoloss-train}. The baseline (blue) is consistently more
-    efficient per step for the first $\sim$20{,}000 steps, but the TST run's
-    recovery phase produces a rapid improvement, and the TST run's final validation
-    CE of $3.41$ nats requires $1.91\times$ more baseline steps to match.}
-    \label{fig:isoloss-val}
+    \includegraphics[width=\linewidth]{../assets/isoloss_val_noarrows.png}
+    \caption{Isoloss curves for validation loss (BPB) for all trained variants:
+    Baseline40k (blue), TokenSuperposition20k ($r{=}0.30$, red), and the five
+    phase-ratio sweep variants ($r \in \{0.06, 0.12, 0.18, 0.24, 0.36\}$, plasma
+    gradient). All TST variants converge to similar final loss, with no meaningful
+    trend across the range of superposition phase lengths.}
+    \label{fig:isoloss-variants}
 \end{figure}
 
 The step-axis panel of Figure~\ref{fig:isoloss-val} clearly shows the characteristic
@@ -276,6 +275,9 @@ recovery once standard training resumes.
 By the end of the TST run's 20{,}000 steps, the baseline requires a further
 $\sim$18{,}000 steps --- nearly doubling its compute budget --- to reach the same
 validation loss.
+
+This validates the claim in \citet{peng2026efficient} that ``the same loss can be
+achieved at around half the computational cost''.
 
 \section{Challenging the Efficiency Claim}
 
@@ -341,6 +343,9 @@ To isolate the contribution of the superposition objective from this scheduling
 confound, we trained a \emph{schedule-matched baseline}: standard autoregressive
 training for 20{,}000 steps with WSD decay at step 18{,}000 — equal total FLOPs to
 TST20k, identical decay timing, but no bag training whatsoever.
+As Figure~\ref{fig:front-page} shows, the validation loss curve of the
+schedule-matched baseline is nearly indistinguishable from that of Token Superposition
+throughout training.
 Results are in Table~\ref{tab:schedule}.
 
 \begin{table}[h]
